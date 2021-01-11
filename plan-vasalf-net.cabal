@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ce301d078370f47e53734449b44404189e66a816bbddb26ba22cb5eb6447034f
+-- hash: d75b252e130b31c5ab76ddbe8f44392c386251ee221db361890319f45a409372
 
 name:           plan-vasalf-net
 version:        0.1.0.0
@@ -27,6 +27,9 @@ source-repository head
 
 library
   exposed-modules:
+      My.Model
+      My.Model.Haskell
+      My.Model.Persist
       My.Plan
   other-modules:
       Paths_plan_vasalf_net
@@ -36,7 +39,8 @@ library
       base >=4.7 && <5
     , bytestring >=0.10
     , monad-logger >=0.3
-    , persistent-postgresql >=2.10
+    , persistent-postgresql >=2.8
+    , persistent-template >=2.8
     , text >=1.2.4
     , yesod >=1.6
     , yesod-persistent >=1.6
@@ -53,7 +57,8 @@ executable plan-vasalf-net-exe
       base >=4.7 && <5
     , bytestring >=0.10
     , monad-logger >=0.3
-    , persistent-postgresql >=2.10
+    , persistent-postgresql >=2.8
+    , persistent-template >=2.8
     , plan-vasalf-net
     , text >=1.2.4
     , yesod >=1.6
@@ -72,7 +77,8 @@ test-suite plan-vasalf-net-test
       base >=4.7 && <5
     , bytestring >=0.10
     , monad-logger >=0.3
-    , persistent-postgresql >=2.10
+    , persistent-postgresql >=2.8
+    , persistent-template >=2.8
     , plan-vasalf-net
     , text >=1.2.4
     , yesod >=1.6

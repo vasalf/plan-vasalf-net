@@ -2,13 +2,14 @@
 
 module Main where
 
+import My.Model
 import My.Plan
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (runStderrLoggingT)
 import Data.ByteString (ByteString)
 
-import Database.Persist.Postgresql 
+import Database.Persist.Postgresql
 import Yesod (warp)
 
 

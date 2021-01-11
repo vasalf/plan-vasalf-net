@@ -12,23 +12,11 @@
 
 module My.Plan where
 
-import qualified Data.Text as T
 
 import Database.Persist.Postgresql
 import Yesod
 
-
-type UserAuthId = T.Text
-
-
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
-User
-  authId UserAuthId
-  deriving Eq
-  deriving Ord
-  deriving Show
-  UniqueAuthId authId
-|]
+import My.Model
 
 
 newtype PlanApp = PlanApp {
@@ -54,7 +42,4 @@ getHomeR = defaultLayout
   [whamlet|
     <p>Hi there!
   |]
-
-
-
 

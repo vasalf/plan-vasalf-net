@@ -23,7 +23,8 @@ dependencies:
 - base >= 4.7 && < 5
 - yesod >= 1.6
 - yesod-persistent >= 1.6
-- persistent-postgresql >= 2.10
+- persistent-postgresql >= 2.8
+- persistent-template >= 2.8
 - monad-logger >= 0.3
 - text >= 1.2.4
 - bytestring >= 0.10
