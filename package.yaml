@@ -24,6 +24,9 @@ dependencies:
 - yesod >= 1.6
 - yesod-persistent >= 1.6
 - persistent-postgresql >= 2.10
+- monad-logger >= 0.3
+- text >= 1.2.4
+- bytestring >= 0.10
 
 library:
   source-dirs: src
