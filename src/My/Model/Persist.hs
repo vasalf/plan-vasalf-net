@@ -34,10 +34,11 @@ Dashboard
   deriving Show
 
 DashboardAccess
-  dashboardUser UserId
-  accessedDashboard DashboardId
-  accessType DashboardAccessType
+  user UserId
+  dashboard DashboardId
+  atype DashboardAccessType
   deriving Eq
   deriving Show
-  UniqueDashboardAuthId dashboardUser accessedDashboard
+  UniqueDashboardAuthId user dashboard
 |]
+

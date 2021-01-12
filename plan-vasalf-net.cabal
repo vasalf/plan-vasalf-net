@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d75b252e130b31c5ab76ddbe8f44392c386251ee221db361890319f45a409372
+-- hash: bca8c951663aea52a0d4650150efc99d229330d52431769a30a06134b1314568
 
 name:           plan-vasalf-net
 version:        0.1.0.0
@@ -35,6 +35,7 @@ library
       Paths_plan_vasalf_net
   hs-source-dirs:
       src
+  ghc-options: -Wall
   build-depends:
       base >=4.7 && <5
     , bytestring >=0.10
@@ -52,7 +53,7 @@ executable plan-vasalf-net-exe
       Paths_plan_vasalf_net
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , bytestring >=0.10
@@ -72,7 +73,7 @@ test-suite plan-vasalf-net-test
       Paths_plan_vasalf_net
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , bytestring >=0.10

@@ -8,6 +8,7 @@ import My.Plan
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (runStderrLoggingT)
 import Data.ByteString (ByteString)
+import Data.Maybe (fromMaybe)
 
 import Database.Persist.Postgresql
 import Yesod (warp)
@@ -28,4 +29,6 @@ main =
   \pool -> liftIO $ do
     flip runSqlPersistMPool pool $ do
       runMigration migrateAll
+      mbTestUser <- getBy (UniqueUserAuthId "test")
+      fromMaybe (insert_ (User "test")) (pure () <$ mbTestUser)
     warp 3000 $ PlanApp pool
