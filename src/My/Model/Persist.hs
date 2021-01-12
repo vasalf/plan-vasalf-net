@@ -16,6 +16,7 @@ import qualified Data.Text as T
 
 import Data.Aeson.TH
 import Database.Persist.Postgresql
+import Data.Time.Calendar
 import Yesod
 
 import My.Model.Haskell
@@ -46,6 +47,8 @@ DashboardAccess
 Task
   dashboard DashboardId
   name T.Text
+  due DueDateOptions default="\'NoDueDate\'"
+  deadline Day Maybe
   description T.Text
   deriving Eq
   deriving Ord

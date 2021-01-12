@@ -15,8 +15,9 @@ module My.Plan where
 
 
 import Data.Maybe (fromMaybe)
+import qualified Data.Text as T
 
-import Data.Aeson (encode)
+import Data.Time.Calendar (Day)
 
 import Database.Persist.Postgresql
 import Yesod
@@ -141,32 +142,81 @@ getDashboardR dashboardId = do
   defaultLayout
     [whamlet|
       <p>#{show dashboard}
-      <ul>
-        $forall task <- tasks
-          <li>#{show $ encode $ toJSON task}
+      ^{tasksWidget tasks}
       <form method=post action=@{CreateTaskR dashboardId} enctype=#{enctype}>
         ^{widget}
         <button>Submit
     |]
 
 
-dashboardTasks :: DashboardId -> Handler [Task]
-dashboardTasks dashboardId =
-  runDB $ map entityVal <$> selectList [TaskDashboard ==. dashboardId] []
+dashboardTasks :: DashboardId -> Handler [Entity Task]
+dashboardTasks dashboardId = runDB $ selectList [TaskDashboard ==. dashboardId] []
 
 
 getApiTasksR :: DashboardId -> Handler Value
 getApiTasksR dashboardId = do
   _ <- authDashboard dashboardId
   tasks <- dashboardTasks dashboardId
-  return $ object [ "dashboardId" .= dashboardId, "tasks" .= tasks ]
+  return $ object [ "dashboardId" .= dashboardId, "tasks" .= map entityVal tasks ]
 
 
 createTaskForm :: DashboardId -> Form Task
-createTaskForm dashboardId = renderDivs $
-  Task dashboardId
+createTaskForm dashboardId = renderDivs $ do
+  createTask
     <$> areq textField "Task name: " Nothing
+    <*> aopt dayField "Due start: " Nothing
+    <*> aopt dayField "Due end: " Nothing
+    <*> aopt dayField "Deadline: " Nothing
     <*> (unTextarea . fromMaybe "" <$> aopt textareaField "Task description: " Nothing)
+  where
+    createTask :: T.Text -> Maybe Day -> Maybe Day -> Maybe Day -> T.Text -> Task
+    createTask name dueStart dueEnd deadline desc
+      | Nothing <- dueStart =
+          Task dashboardId name NoDueDate deadline desc
+      | Just due <- dueStart, Nothing <- dueEnd =
+          Task dashboardId name (DueDate due) deadline desc
+      | Just start <- dueStart, Just end <- dueEnd =
+          Task dashboardId name (DueDateRange start end) deadline desc
+
+
+taskRowWidget :: Entity Task -> Widget
+taskRowWidget taskEntity = do
+  let task = entityVal taskEntity
+  toWidget [hamlet|
+    <div class="task-row">
+      <div class="task-cell task-name">#{taskName task}
+      <div class="task-cell task-due">#{showDue (taskDue task)}
+      <div class="task-cell task-deadline">#{show $ taskDeadline task}
+  |]
+    where
+      showDue NoDueDate = ""
+      showDue (DueDate date) = show date
+      showDue (DueDateRange start end) = show start <> "—" <> show end
+
+
+tasksWidget :: [Entity Task] -> Widget
+tasksWidget tasks = do
+  toWidgetHead [cassius|
+    #tasks:
+      display: table
+    .task-row
+      display: table-row
+    .task-header
+      font-weight: bold
+    .task-cell
+      display: table-cell
+      padding: 5px
+      text-align: left
+  |]
+  toWidget [whamlet|
+    <div #tasks>
+      <div class="task-row">
+        <div class="task-cell task-header">Task
+        <div class="task-cell task-header">Due
+        <div class="task-cell task-header">Deadline
+      $forall task <- tasks
+        ^{taskRowWidget task}
+  |]
 
 
 postCreateTaskR :: DashboardId -> Handler Html

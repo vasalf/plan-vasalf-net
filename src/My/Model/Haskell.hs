@@ -5,6 +5,9 @@ module My.Model.Haskell where
 
 import qualified Data.Text as T
 
+import Data.Aeson.TH
+import Data.Time.Calendar
+
 import Database.Persist.TH
 
 
@@ -16,3 +19,13 @@ data DashboardAccessType = NoAccess | OwnerAccess
 
 
 derivePersistField "DashboardAccessType"
+
+
+data DueDateOptions = NoDueDate
+                    | DueDate Day
+                    | DueDateRange Day Day
+  deriving (Eq, Ord, Show, Read)
+
+
+derivePersistField "DueDateOptions"
+$(deriveJSON defaultOptions ''DueDateOptions)

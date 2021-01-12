@@ -30,6 +30,7 @@ dependencies:
 - text >= 1.2.4
 - bytestring >= 0.10
 - aeson >= 1.4
+- time >= 1.9
 
 ghc-options:
 - -Wall
