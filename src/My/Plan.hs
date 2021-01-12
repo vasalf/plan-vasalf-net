@@ -37,6 +37,7 @@ mkYesod "PlanApp" [parseRoutes|
 /dashboard/#DashboardId/create-task  CreateTaskR POST
 /dashboard/#DashboardId/complete-task/#TaskId CompleteTaskR POST
 /dashboard/#DashboardId/delete-task/#TaskId DeleteTaskR POST
+/dashboard/#DashboardId/reopen-task/#TaskId ReopenTaskR POST
 /api/tasks/#DashboardId ApiTasksR GET
 |]
 
@@ -192,9 +193,14 @@ taskRowWidget dashboardId taskEntity = do
       <div class="task-cell task-due">#{showDue (taskDue task)}
       <div class="task-cell task-deadline">#{show $ taskDeadline task}
       <div class="task-cell task-status"> #{show $ taskStatus task}
-      <div class="task-cell task-complete">
-        <form method=post action=@{CompleteTaskR dashboardId taskId}>
-          <button>Complete
+      $if taskStatus task == TaskListed
+        <div class="task-cell task-complete">
+          <form method=post action=@{CompleteTaskR dashboardId taskId}>
+            <button>Complete
+      $else
+        <div class="task-cell task-reopen">
+          <form method=post action=@{ReopenTaskR dashboardId taskId}>
+            <button>Reopen
       <div class="task-cell task-delete">
         <form method=post action=@{DeleteTaskR dashboardId taskId}>
           <button>Delete
@@ -251,4 +257,11 @@ postDeleteTaskR :: DashboardId -> TaskId -> Handler Html
 postDeleteTaskR dashboardId taskId = do
   _ <- authDashboard dashboardId
   runDB $ update taskId [ TaskStatus =. TaskDeleted ]
+  redirect $ DashboardR dashboardId
+
+
+postReopenTaskR :: DashboardId -> TaskId -> Handler Html
+postReopenTaskR dashboardId taskId = do
+  _ <- authDashboard dashboardId
+  runDB $ update taskId [ TaskStatus =. TaskListed ]
   redirect $ DashboardR dashboardId
