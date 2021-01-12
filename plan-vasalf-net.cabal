@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bca8c951663aea52a0d4650150efc99d229330d52431769a30a06134b1314568
+-- hash: 3a6492fea05ee88a6f795146a6a6e723f761d71de613bc04fd96f646a04ce64c
 
 name:           plan-vasalf-net
 version:        0.1.0.0
@@ -37,7 +37,8 @@ library
       src
   ghc-options: -Wall
   build-depends:
-      base >=4.7 && <5
+      aeson >=1.4
+    , base >=4.7 && <5
     , bytestring >=0.10
     , monad-logger >=0.3
     , persistent-postgresql >=2.8
@@ -55,7 +56,8 @@ executable plan-vasalf-net-exe
       app
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      aeson >=1.4
+    , base >=4.7 && <5
     , bytestring >=0.10
     , monad-logger >=0.3
     , persistent-postgresql >=2.8
@@ -75,7 +77,8 @@ test-suite plan-vasalf-net-test
       test
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      aeson >=1.4
+    , base >=4.7 && <5
     , bytestring >=0.10
     , monad-logger >=0.3
     , persistent-postgresql >=2.8

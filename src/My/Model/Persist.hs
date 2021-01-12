@@ -2,6 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -13,6 +14,7 @@ module My.Model.Persist where
 
 import qualified Data.Text as T
 
+import Data.Aeson.TH
 import Database.Persist.Postgresql
 import Yesod
 
@@ -40,5 +42,15 @@ DashboardAccess
   deriving Eq
   deriving Show
   UniqueDashboardAuthId user dashboard
+
+Task
+  dashboard DashboardId
+  name T.Text
+  description T.Text
+  deriving Eq
+  deriving Ord
+  deriving Show
 |]
 
+
+$(deriveJSON defaultOptions 'Task)

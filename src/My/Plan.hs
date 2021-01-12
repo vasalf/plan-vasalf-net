@@ -14,6 +14,10 @@
 module My.Plan where
 
 
+import Data.Maybe (fromMaybe)
+
+import Data.Aeson (encode)
+
 import Database.Persist.Postgresql
 import Yesod
 
@@ -29,6 +33,8 @@ mkYesod "PlanApp" [parseRoutes|
 / HomeR GET
 /create-dashboard CreateDashboardR GET POST
 /dashboard/#DashboardId DashboardR GET
+/dashboard/#DashboardId/create-task  CreateTaskR POST
+/api/tasks/#DashboardId ApiTasksR GET
 |]
 
 
@@ -71,7 +77,7 @@ getHomeR = do
 
 
 createDashboardForm :: Form Dashboard
-createDashboardForm = renderDivs $ Dashboard <$> areq textField "Dashboard Name: " Nothing
+createDashboardForm = renderDivs $ Dashboard <$> areq textField "Dashboard name: " Nothing
 
 
 getCreateDashboardR :: Handler Html
@@ -106,26 +112,68 @@ dashboardAccessType userId dashboardId = runDB $ do
   return $ maybe NoAccess (dashboardAccessAtype . entityVal) mbType
 
 
+authDashboard :: DashboardId -> Handler Dashboard
+authDashboard dashboardId = do
+  authenticate
+  dashboardById
+    where
+      dashboardById :: Handler Dashboard
+      dashboardById = do
+        mbDashboard <- runDB $ get dashboardId
+        case mbDashboard of
+          Just e  -> return e
+          Nothing -> redirect HomeR
+
+      authenticate :: Handler ()
+      authenticate = do
+        userId <- entityKey <$> authRedirect
+        accessType <- dashboardAccessType userId dashboardId
+        case accessType of
+          OwnerAccess -> pure ()
+          NoAccess -> redirect HomeR
+
+
 getDashboardR :: DashboardId -> Handler Html
 getDashboardR dashboardId = do
-  authenticate
-  dashboard <- dashboardById
+  dashboard <- authDashboard dashboardId
+  (widget, enctype) <- generateFormPost (createTaskForm dashboardId)
+  tasks <- dashboardTasks dashboardId
   defaultLayout
     [whamlet|
       <p>#{show dashboard}
+      <ul>
+        $forall task <- tasks
+          <li>#{show $ encode $ toJSON task}
+      <form method=post action=@{CreateTaskR dashboardId} enctype=#{enctype}>
+        ^{widget}
+        <button>Submit
     |]
-  where
-    dashboardById :: Handler Dashboard
-    dashboardById = do
-      mbDashboard <- runDB $ get dashboardId
-      case mbDashboard of
-        Just e  -> return e
-        Nothing -> redirect HomeR
 
-    authenticate :: Handler ()
-    authenticate = do
-      userId <- entityKey <$> authRedirect
-      accessType <- dashboardAccessType userId dashboardId
-      case accessType of
-        OwnerAccess -> pure ()
-        NoAccess -> redirect HomeR
+
+dashboardTasks :: DashboardId -> Handler [Task]
+dashboardTasks dashboardId =
+  runDB $ map entityVal <$> selectList [TaskDashboard ==. dashboardId] []
+
+
+getApiTasksR :: DashboardId -> Handler Value
+getApiTasksR dashboardId = do
+  _ <- authDashboard dashboardId
+  tasks <- dashboardTasks dashboardId
+  return $ object [ "dashboardId" .= dashboardId, "tasks" .= tasks ]
+
+
+createTaskForm :: DashboardId -> Form Task
+createTaskForm dashboardId = renderDivs $
+  Task dashboardId
+    <$> areq textField "Task name: " Nothing
+    <*> (unTextarea . fromMaybe "" <$> aopt textareaField "Task description: " Nothing)
+
+
+postCreateTaskR :: DashboardId -> Handler Html
+postCreateTaskR dashboardId = do
+  _ <- authDashboard dashboardId
+  ((result, _), _) <- runFormPost (createTaskForm dashboardId)
+  case result of
+    FormSuccess task -> runDB $ insert_ task
+    _ -> pure ()
+  redirect $ DashboardR dashboardId
