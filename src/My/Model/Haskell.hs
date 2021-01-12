@@ -29,3 +29,11 @@ data DueDateOptions = NoDueDate
 
 derivePersistField "DueDateOptions"
 $(deriveJSON defaultOptions ''DueDateOptions)
+
+
+data TaskStatus = TaskListed | TaskCompleted | TaskDeleted
+  deriving (Eq, Ord, Show, Read)
+
+
+derivePersistField "TaskStatus"
+$(deriveJSON defaultOptions ''TaskStatus)

@@ -35,6 +35,8 @@ mkYesod "PlanApp" [parseRoutes|
 /create-dashboard CreateDashboardR GET POST
 /dashboard/#DashboardId DashboardR GET
 /dashboard/#DashboardId/create-task  CreateTaskR POST
+/dashboard/#DashboardId/complete-task/#TaskId CompleteTaskR POST
+/dashboard/#DashboardId/delete-task/#TaskId DeleteTaskR POST
 /api/tasks/#DashboardId ApiTasksR GET
 |]
 
@@ -142,7 +144,7 @@ getDashboardR dashboardId = do
   defaultLayout
     [whamlet|
       <p>#{show dashboard}
-      ^{tasksWidget tasks}
+      ^{tasksWidget dashboardId tasks}
       <form method=post action=@{CreateTaskR dashboardId} enctype=#{enctype}>
         ^{widget}
         <button>Submit
@@ -150,7 +152,8 @@ getDashboardR dashboardId = do
 
 
 dashboardTasks :: DashboardId -> Handler [Entity Task]
-dashboardTasks dashboardId = runDB $ selectList [TaskDashboard ==. dashboardId] []
+dashboardTasks dashboardId = 
+  runDB $ selectList [TaskDashboard ==. dashboardId, TaskStatus !=. TaskDeleted ] []
 
 
 getApiTasksR :: DashboardId -> Handler Value
@@ -172,21 +175,29 @@ createTaskForm dashboardId = renderDivs $ do
     createTask :: T.Text -> Maybe Day -> Maybe Day -> Maybe Day -> T.Text -> Task
     createTask name dueStart dueEnd deadline desc
       | Nothing <- dueStart =
-          Task dashboardId name NoDueDate deadline desc
+          Task dashboardId name NoDueDate deadline desc TaskListed
       | Just due <- dueStart, Nothing <- dueEnd =
-          Task dashboardId name (DueDate due) deadline desc
+          Task dashboardId name (DueDate due) deadline desc TaskListed
       | Just start <- dueStart, Just end <- dueEnd =
-          Task dashboardId name (DueDateRange start end) deadline desc
+          Task dashboardId name (DueDateRange start end) deadline desc TaskListed
 
 
-taskRowWidget :: Entity Task -> Widget
-taskRowWidget taskEntity = do
+taskRowWidget :: DashboardId -> Entity Task -> Widget
+taskRowWidget dashboardId taskEntity = do
   let task = entityVal taskEntity
-  toWidget [hamlet|
+  let taskId = entityKey taskEntity
+  toWidget [whamlet|
     <div class="task-row">
       <div class="task-cell task-name">#{taskName task}
       <div class="task-cell task-due">#{showDue (taskDue task)}
       <div class="task-cell task-deadline">#{show $ taskDeadline task}
+      <div class="task-cell task-status"> #{show $ taskStatus task}
+      <div class="task-cell task-complete">
+        <form method=post action=@{CompleteTaskR dashboardId taskId}>
+          <button>Complete
+      <div class="task-cell task-delete">
+        <form method=post action=@{DeleteTaskR dashboardId taskId}>
+          <button>Delete
   |]
     where
       showDue NoDueDate = ""
@@ -194,8 +205,8 @@ taskRowWidget taskEntity = do
       showDue (DueDateRange start end) = show start <> "—" <> show end
 
 
-tasksWidget :: [Entity Task] -> Widget
-tasksWidget tasks = do
+tasksWidget :: DashboardId -> [Entity Task] -> Widget
+tasksWidget dashboardId tasks = do
   toWidgetHead [cassius|
     #tasks:
       display: table
@@ -215,7 +226,7 @@ tasksWidget tasks = do
         <div class="task-cell task-header">Due
         <div class="task-cell task-header">Deadline
       $forall task <- tasks
-        ^{taskRowWidget task}
+        ^{taskRowWidget dashboardId task}
   |]
 
 
@@ -226,4 +237,18 @@ postCreateTaskR dashboardId = do
   case result of
     FormSuccess task -> runDB $ insert_ task
     _ -> pure ()
+  redirect $ DashboardR dashboardId
+
+
+postCompleteTaskR :: DashboardId -> TaskId -> Handler Html
+postCompleteTaskR dashboardId taskId = do
+  _ <- authDashboard dashboardId
+  runDB $ update taskId [ TaskStatus =. TaskCompleted ]
+  redirect $ DashboardR dashboardId
+
+
+postDeleteTaskR :: DashboardId -> TaskId -> Handler Html
+postDeleteTaskR dashboardId taskId = do
+  _ <- authDashboard dashboardId
+  runDB $ update taskId [ TaskStatus =. TaskDeleted ]
   redirect $ DashboardR dashboardId

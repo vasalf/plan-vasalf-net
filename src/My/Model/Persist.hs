@@ -50,6 +50,7 @@ Task
   due DueDateOptions default="\'NoDueDate\'"
   deadline Day Maybe
   description T.Text
+  status TaskStatus default="\'TaskListed\'"
   deriving Eq
   deriving Ord
   deriving Show
