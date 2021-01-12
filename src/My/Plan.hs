@@ -36,7 +36,7 @@ mkYesod "PlanApp" [parseRoutes|
 /dashboard/#DashboardId DashboardR GET
 /dashboard/#DashboardId/create-task  CreateTaskR POST
 /dashboard/#DashboardId/complete-task/#TaskId CompleteTaskR POST
-/dashboard/#DashboardId/delete-task/#TaskId DeleteTaskR POST
+/dashboard/#DashboardId/archive-task/#TaskId ArchiveTaskR POST
 /dashboard/#DashboardId/reopen-task/#TaskId ReopenTaskR POST
 /api/tasks/#DashboardId ApiTasksR GET
 |]
@@ -154,7 +154,7 @@ getDashboardR dashboardId = do
 
 dashboardTasks :: DashboardId -> Handler [Entity Task]
 dashboardTasks dashboardId = 
-  runDB $ selectList [TaskDashboard ==. dashboardId, TaskStatus !=. TaskDeleted ] []
+  runDB $ selectList [TaskDashboard ==. dashboardId, TaskStatus !=. TaskArchived ] []
 
 
 getApiTasksR :: DashboardId -> Handler Value
@@ -201,9 +201,9 @@ taskRowWidget dashboardId taskEntity = do
         <div class="task-cell task-reopen">
           <form method=post action=@{ReopenTaskR dashboardId taskId}>
             <button>Reopen
-      <div class="task-cell task-delete">
-        <form method=post action=@{DeleteTaskR dashboardId taskId}>
-          <button>Delete
+      <div class="task-cell task-archive">
+        <form method=post action=@{ArchiveTaskR dashboardId taskId}>
+          <button>Archive
   |]
     where
       showDue NoDueDate = ""
@@ -253,10 +253,10 @@ postCompleteTaskR dashboardId taskId = do
   redirect $ DashboardR dashboardId
 
 
-postDeleteTaskR :: DashboardId -> TaskId -> Handler Html
-postDeleteTaskR dashboardId taskId = do
+postArchiveTaskR :: DashboardId -> TaskId -> Handler Html
+postArchiveTaskR dashboardId taskId = do
   _ <- authDashboard dashboardId
-  runDB $ update taskId [ TaskStatus =. TaskDeleted ]
+  runDB $ update taskId [ TaskStatus =. TaskArchived ]
   redirect $ DashboardR dashboardId
 
 
