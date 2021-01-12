@@ -14,6 +14,7 @@
 module My.Plan where
 
 
+import Data.List (sortBy)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 
@@ -191,7 +192,7 @@ taskRowWidget dashboardId taskEntity = do
     <div class="task-row">
       <div class="task-cell task-name">#{taskName task}
       <div class="task-cell task-due">#{showDue (taskDue task)}
-      <div class="task-cell task-deadline">#{show $ taskDeadline task}
+      <div class="task-cell task-deadline">#{showDeadline $ taskDeadline task}
       <div class="task-cell task-status"> #{show $ taskStatus task}
       $if taskStatus task == TaskListed
         <div class="task-cell task-complete">
@@ -210,9 +211,12 @@ taskRowWidget dashboardId taskEntity = do
       showDue (DueDate date) = show date
       showDue (DueDateRange start end) = show start <> "—" <> show end
 
+      showDeadline = maybe "" show
+
 
 tasksWidget :: DashboardId -> [Entity Task] -> Widget
 tasksWidget dashboardId tasks = do
+  let sortedTasks = sortBy cmp tasks
   toWidgetHead [cassius|
     #tasks:
       display: table
@@ -231,9 +235,36 @@ tasksWidget dashboardId tasks = do
         <div class="task-cell task-header">Task
         <div class="task-cell task-header">Due
         <div class="task-cell task-header">Deadline
-      $forall task <- tasks
+      $forall task <- sortedTasks
         ^{taskRowWidget dashboardId task}
   |]
+    where
+      cmpCmpl x y
+        | x == y = EQ
+        | x == TaskListed = LT
+        | otherwise = GT
+
+      cmpMaybeInv x y
+        | Nothing <- x, Nothing <- y = EQ
+        | Nothing <- y = LT
+        | Nothing <- x = GT
+        | Just xv <- x, Just yv <- y = compare xv yv
+
+      mbStartDate NoDueDate = Nothing
+      mbStartDate (DueDate s) = Just s
+      mbStartDate (DueDateRange s _) = Just s
+
+      dueTf = mbStartDate . taskDue . entityVal
+
+      cmp task1 task2
+        | taskStatus (entityVal task1) /= taskStatus (entityVal task2) =
+            cmpCmpl (taskStatus $ entityVal task1) (taskStatus $ entityVal task2)
+        | taskDue (entityVal task1) /= taskDue (entityVal task2) =
+            cmpMaybeInv (dueTf task1) (dueTf task2)
+        | taskDeadline (entityVal task1) /= taskDeadline (entityVal task2) =
+            cmpMaybeInv (taskDeadline $ entityVal task1) (taskDeadline $ entityVal task2)
+        | otherwise =
+            compare (entityKey task1) (entityKey task2)
 
 
 postCreateTaskR :: DashboardId -> Handler Html
