@@ -143,7 +143,8 @@ getDashboardR dashboardId = do
   dashboard <- authDashboard dashboardId
   (widget, enctype) <- generateFormPost (createTaskForm dashboardId)
   tasks <- dashboardTasks dashboardId
-  defaultLayout
+  defaultLayout $ do
+    addScriptRemote "https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"
     [whamlet|
       <p>#{show dashboard}
       ^{tasksWidget dashboardId tasks}
@@ -166,22 +167,67 @@ getApiTasksR dashboardId = do
 
 
 createTaskForm :: DashboardId -> Form Task
-createTaskForm dashboardId = renderDivs $ do
-  createTask
-    <$> areq textField "Task name: " Nothing
-    <*> aopt dayField "Due start: " Nothing
-    <*> aopt dayField "Due end: " Nothing
-    <*> aopt dayField "Deadline: " Nothing
-    <*> (unTextarea . fromMaybe "" <$> aopt textareaField "Task description: " Nothing)
-  where
-    createTask :: T.Text -> Maybe Day -> Maybe Day -> Maybe Day -> T.Text -> Task
-    createTask name dueStart dueEnd deadline desc
-      | Nothing <- dueStart =
-          Task dashboardId name NoDueDate deadline desc TaskListed
-      | Just due <- dueStart, Nothing <- dueEnd =
-          Task dashboardId name (DueDate due) deadline desc TaskListed
-      | Just start <- dueStart, Just end <- dueEnd =
-          Task dashboardId name (DueDateRange start end) deadline desc TaskListed
+createTaskForm dashboardId csrf = do
+  (nameRes, nameView) <- mreq textField "" Nothing
+  (dueStartRes, dueStartView) <- mopt dayField "" Nothing
+  (dueEndRes, dueEndView) <- mopt dayField "" Nothing
+  (deadlineRes, deadlineView) <- mopt dayField "" Nothing
+  (descRes, descView) <- mopt textareaField "" Nothing
+  let res = createTask
+        <$> nameRes
+        <*> dueStartRes
+        <*> dueEndRes
+        <*> deadlineRes
+        <*> (unTextarea . fromMaybe "" <$> descRes)
+  let widget = do
+        toWidget [cassius|
+          .new-task-form
+            display: table
+          .new-task-form-row
+            display: table-row
+          .new-task-form-cell
+            display: table-cell
+            padding: 5px
+        |]
+        [whamlet|
+          #{csrf}
+          <div class="new-task-form">
+            <div class="new-task-form-row">
+              <div class="new-task-form-cell">
+                Task name:
+              <div class="new-task-form-cell">
+                ^{fvInput nameView}
+            <div class="new-task-form-row">
+              <div class="new-task-form-cell">
+                Due start:
+              <div class="new-task-form-cell">
+                ^{fvInput dueStartView}
+            <div class="new-task-form-row">
+              <div class="new-task-form-cell">
+                Due end:
+              <div class="new-task-form-cell">
+                ^{fvInput dueEndView}
+            <div class="new-task-form-row">
+              <div class="new-task-form-cell">
+                Deadline:
+              <div class="new-task-form-cell">
+                ^{fvInput deadlineView}
+            <div class="new-task-form-row">
+              <div class="new-task-form-cell">
+                Description:
+              <div class="new-task-form-cell">
+                ^{fvInput descView}
+        |]
+  return (res, widget)
+    where
+      createTask :: T.Text -> Maybe Day -> Maybe Day -> Maybe Day -> T.Text -> Task
+      createTask name dueStart dueEnd deadline desc
+        | Nothing <- dueStart =
+            Task dashboardId name NoDueDate deadline desc TaskListed
+        | Just due <- dueStart, Nothing <- dueEnd =
+            Task dashboardId name (DueDate due) deadline desc TaskListed
+        | Just start <- dueStart, Just end <- dueEnd =
+            Task dashboardId name (DueDateRange start end) deadline desc TaskListed
 
 
 taskRowWidget :: DashboardId -> Entity Task -> Widget
@@ -218,7 +264,7 @@ tasksWidget :: DashboardId -> [Entity Task] -> Widget
 tasksWidget dashboardId tasks = do
   let sortedTasks = sortBy cmp tasks
   toWidgetHead [cassius|
-    #tasks:
+    #tasks
       display: table
     .task-row
       display: table-row
