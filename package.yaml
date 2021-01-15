@@ -31,6 +31,7 @@ dependencies:
 - bytestring >= 0.10
 - aeson >= 1.4
 - time >= 1.9
+- shakespeare >= 2.0
 
 ghc-options:
 - -Wall

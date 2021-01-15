@@ -19,6 +19,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 
 import Data.Time.Calendar (Day)
+import Text.Julius (RawJS(..))
 
 import Database.Persist.Postgresql
 import Yesod
@@ -169,19 +170,21 @@ getApiTasksR dashboardId = do
 createTaskForm :: DashboardId -> Form Task
 createTaskForm dashboardId csrf = do
   (nameRes, nameView) <- mreq textField "" Nothing
+  (dueDayRes, dueDayView) <- mopt dayField "" Nothing
   (dueStartRes, dueStartView) <- mopt dayField "" Nothing
   (dueEndRes, dueEndView) <- mopt dayField "" Nothing
   (deadlineRes, deadlineView) <- mopt dayField "" Nothing
   (descRes, descView) <- mopt textareaField "" Nothing
   let res = createTask
         <$> nameRes
+        <*> dueDayRes
         <*> dueStartRes
         <*> dueEndRes
         <*> deadlineRes
         <*> (unTextarea . fromMaybe "" <$> descRes)
   let widget = do
         toWidget [cassius|
-          .new-task-form
+          #new-task-form
             display: table
           .new-task-form-row
             display: table-row
@@ -189,24 +192,48 @@ createTaskForm dashboardId csrf = do
             display: table-cell
             padding: 5px
         |]
+        toWidget [julius|
+          $(function(){
+            $("#new-task-due-date-range").hide();
+            $("#switch-to-date-range").click(function(event){
+              $("#" + "#{rawJS $ fvId dueDayView}").val("");
+              $("#new-task-due-date-range").show();
+              $("#new-task-due-day").hide();
+              event.preventDefault();
+            });
+            $("#switch-to-single-date").click(function(event){
+              $("#" + "#{rawJS $ fvId dueStartView}").val("");
+              $("#" + "#{rawJS $ fvId dueEndView}").val("");
+              $("#new-task-due-date-range").hide();
+              $("#new-task-due-day").show();
+              event.preventDefault();
+            });
+          });
+        |]
         [whamlet|
           #{csrf}
-          <div class="new-task-form">
+          <div #new-task-form>
             <div class="new-task-form-row">
               <div class="new-task-form-cell">
                 Task name:
               <div class="new-task-form-cell">
                 ^{fvInput nameView}
-            <div class="new-task-form-row">
+            <div class="new-task-form-row" #new-task-due-day>
               <div class="new-task-form-cell">
-                Due start:
+                Due:
               <div class="new-task-form-cell">
-                ^{fvInput dueStartView}
-            <div class="new-task-form-row">
+                <span>
+                  ^{fvInput dueDayView}
+                <a href="#" class="interactive-link" #switch-to-date-range>
+                  Enter date range
+            <div class="new-task-form-row" #new-task-due-date-range>
               <div class="new-task-form-cell">
-                Due end:
+                Due:
               <div class="new-task-form-cell">
-                ^{fvInput dueEndView}
+                <span>
+                  ^{fvInput dueStartView} — ^{fvInput dueEndView}
+                <a href="#" class="interactive-link" #switch-to-single-date>
+                  Enter single date
             <div class="new-task-form-row">
               <div class="new-task-form-cell">
                 Deadline:
@@ -220,8 +247,10 @@ createTaskForm dashboardId csrf = do
         |]
   return (res, widget)
     where
-      createTask :: T.Text -> Maybe Day -> Maybe Day -> Maybe Day -> T.Text -> Task
-      createTask name dueStart dueEnd deadline desc
+      createTask :: T.Text -> Maybe Day -> Maybe Day -> Maybe Day -> Maybe Day -> T.Text -> Task
+      createTask name dueDay dueStart dueEnd deadline desc
+        | Just due <- dueDay =
+            Task dashboardId name (DueDate due) deadline desc TaskListed
         | Nothing <- dueStart =
             Task dashboardId name NoDueDate deadline desc TaskListed
         | Just due <- dueStart, Nothing <- dueEnd =
