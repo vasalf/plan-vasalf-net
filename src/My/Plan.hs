@@ -146,12 +146,25 @@ getDashboardR dashboardId = do
   tasks <- dashboardTasks dashboardId
   defaultLayout $ do
     addScriptRemote "https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+    toWidgetHead [cassius|
+      #new-task-popup
+        display: none
+        position: absolute
+        top: 10%
+        left: 10%
+        border: 1px solid black
+        background-color: white
+        padding: 5%
+        z-index: 10
+    |]
     [whamlet|
       <p>#{show dashboard}
       ^{tasksWidget dashboardId tasks}
-      <form method=post action=@{CreateTaskR dashboardId} enctype=#{enctype}>
-        ^{widget}
-        <button>Submit
+      <div #new-task-popup>
+        <form method=post action=@{CreateTaskR dashboardId} enctype=#{enctype}>
+          ^{widget}
+          <button>Submit
+          <button #new-task-popup-close>Close
     |]
 
 
@@ -191,13 +204,14 @@ createTaskForm dashboardId csrf = do
           .new-task-form-cell
             display: table-cell
             padding: 5px
+          #new-task-due-date-range
+            display: none
         |]
         toWidget [julius|
           $(function(){
-            $("#new-task-due-date-range").hide();
             $("#switch-to-date-range").click(function(event){
               $("#" + "#{rawJS $ fvId dueDayView}").val("");
-              $("#new-task-due-date-range").show();
+              $("#new-task-due-date-range").css("display", "table-row");
               $("#new-task-due-day").hide();
               event.preventDefault();
             });
@@ -205,7 +219,7 @@ createTaskForm dashboardId csrf = do
               $("#" + "#{rawJS $ fvId dueStartView}").val("");
               $("#" + "#{rawJS $ fvId dueEndView}").val("");
               $("#new-task-due-date-range").hide();
-              $("#new-task-due-day").show();
+              $("#new-task-due-day").css("display", "table-row");
               event.preventDefault();
             });
           });
@@ -297,21 +311,41 @@ tasksWidget dashboardId tasks = do
       display: table
     .task-row
       display: table-row
+    .task-row:hover
+      background-color: grey
     .task-header
+      display: table-row
       font-weight: bold
     .task-cell
       display: table-cell
       padding: 5px
       text-align: left
   |]
+  toWidget [julius|
+    $(function(){
+      $("#new-task-row").click(function(){
+        $("#new-task-popup").show();
+      });
+      $("#new-task-popup-close").click(function(){
+        $("#new-task-popup").hide();
+      });
+    });
+  |]
   toWidget [whamlet|
     <div #tasks>
-      <div class="task-row">
-        <div class="task-cell task-header">Task
-        <div class="task-cell task-header">Due
-        <div class="task-cell task-header">Deadline
+      <div class="task-header">
+        <div class="task-cell">Task
+        <div class="task-cell">Due
+        <div class="task-cell">Deadline
       $forall task <- sortedTasks
         ^{taskRowWidget dashboardId task}
+      <div class="task-row" #new-task-row>
+        <div class="task-cell">New task
+        <div class="task-cell">
+        <div class="task-cell">
+        <div class="task-cell">
+        <div class="task-cell">
+        <div class="task-cell">
   |]
     where
       cmpCmpl x y
