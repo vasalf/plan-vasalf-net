@@ -24,4 +24,4 @@ main =
     withPostgresqlPool psqlConnStr (postgresConnections runCfg) $
       \pool -> liftIO $ do
         flip runSqlPersistMPool pool $ runMigration migrateAll
-        warp (runPort runCfg) $ PlanApp pool (googleOAuthSecrets secretCfg)
+        warp (runPort runCfg) $ PlanApp pool (runHost runCfg) (googleOAuthSecrets secretCfg)

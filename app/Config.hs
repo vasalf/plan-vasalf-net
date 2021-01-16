@@ -16,6 +16,7 @@ import qualified Data.Text as T
 
 data RunConfig = RunConfig {
   runPort :: Int,
+  runHost :: T.Text,
   postgresConnections :: Int
 }
 

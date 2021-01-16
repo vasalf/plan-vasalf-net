@@ -42,6 +42,7 @@ $(deriveJSON defaultOptions 'GoogleOAuthTokens)
 
 data PlanApp = PlanApp {
   connectionPool :: ConnectionPool,
+  hostname :: T.Text,
   googleSecrets :: GoogleOAuthTokens
 }
 
@@ -60,7 +61,8 @@ mkYesod "PlanApp" [parseRoutes|
 |]
 
 
-instance Yesod PlanApp
+instance Yesod PlanApp where
+  approot = ApprootMaster hostname
 
 
 instance YesodPersist PlanApp where
@@ -99,25 +101,21 @@ authMaybe = do
 
 authRedirect :: Handler (Entity User)
 authRedirect = do
-  authId <- requireAuthId
-  storedUser <- runDB $ getBy (UniqueUserAuthId authId)
-  case storedUser of
+  mbUser <- authMaybe
+  case mbUser of
     Just user -> pure user
-    Nothing -> do
-      let user = User authId
-      userId <- runDB $ insert user
-      return $ Entity userId user
+    Nothing -> redirect $ AuthR LoginR
 
 
-userDashboards :: Entity User -> Handler Widget
-userDashboards user = do
+getHomeRAuthed :: Entity User -> Handler Html
+getHomeRAuthed user = do
   dashboards <- runDB $ do
     let userId = entityKey user
     let getE key = fmap (Entity key) <$> get key
     permissions <- selectList [ DashboardAccessUser ==. userId,
                                 DashboardAccessAtype ==. OwnerAccess ] []
     catMaybes <$> mapM (getE . dashboardAccessDashboard . entityVal) permissions
-  return
+  defaultLayout
     [whamlet|
       <ul>
         $forall dashboard <- dashboards
@@ -133,15 +131,17 @@ userDashboards user = do
 
 getHomeR :: Handler Html
 getHomeR = do
-  mbUser <- authMaybe
-  case mbUser of
-    Nothing -> defaultLayout [whamlet|
-        <p>
-          <a href=@{AuthR LoginR}>
-      |]
-    Just user -> do
-      page <- userDashboards user
-      defaultLayout page
+  mbAuthId <- maybeAuthId
+  case mbAuthId of
+    Nothing -> redirect $ AuthR LoginR
+    Just authId -> do
+      mbUser <- runDB $ getBy (UniqueUserAuthId authId)
+      case mbUser of
+        Just user -> getHomeRAuthed user
+        Nothing -> do
+          let user = User authId
+          userId <- runDB $ insert user
+          getHomeRAuthed $ Entity userId user
 
 
 createDashboardForm :: Form Dashboard

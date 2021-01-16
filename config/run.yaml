@@ -1,2 +1,3 @@
+runHost: http://localhost:3000
 runPort: 3000
 postgresConnections: 10
