@@ -1,0 +1,2 @@
+runPort: 3000
+postgresConnections: 10
