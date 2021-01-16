@@ -17,7 +17,7 @@ module My.Plan where
 
 import Control.Monad (forM)
 import Data.List (sortBy)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Text as T
 
 import Data.Aeson.TH (deriveJSON, defaultOptions)
@@ -42,6 +42,7 @@ $(deriveJSON defaultOptions 'GoogleOAuthTokens)
 
 data PlanApp = PlanApp {
   connectionPool :: ConnectionPool,
+  hostname :: T.Text,
   googleSecrets :: GoogleOAuthTokens
 }
 
@@ -60,7 +61,8 @@ mkYesod "PlanApp" [parseRoutes|
 |]
 
 
-instance Yesod PlanApp
+instance Yesod PlanApp where
+  approot = ApprootMaster hostname
 
 
 instance YesodPersist PlanApp where
@@ -99,32 +101,47 @@ authMaybe = do
 
 authRedirect :: Handler (Entity User)
 authRedirect = do
-  authId <- requireAuthId
-  storedUser <- runDB $ getBy (UniqueUserAuthId authId)
-  case storedUser of
+  mbUser <- authMaybe
+  case mbUser of
     Just user -> pure user
-    Nothing -> do
-      let user = User authId
-      userId <- runDB $ insert user
-      return $ Entity userId user
+    Nothing -> redirect $ AuthR LoginR
+
+
+getHomeRAuthed :: Entity User -> Handler Html
+getHomeRAuthed user = do
+  dashboards <- runDB $ do
+    let userId = entityKey user
+    let getE key = fmap (Entity key) <$> get key
+    permissions <- selectList [ DashboardAccessUser ==. userId,
+                                DashboardAccessAtype ==. OwnerAccess ] []
+    catMaybes <$> mapM (getE . dashboardAccessDashboard . entityVal) permissions
+  defaultLayout
+    [whamlet|
+      <ul>
+        $forall dashboard <- dashboards
+          <li>
+            <a href=@{DashboardR $ entityKey dashboard}>
+              #{dashboardName $ entityVal dashboard}
+      <p>
+        <a href=@{CreateDashboardR}>Create dashboard
+      <p>
+        <a href=@{AuthR LogoutR}>Logout
+    |]
 
 
 getHomeR :: Handler Html
 getHomeR = do
-  mbUser <- authMaybe
-  defaultLayout
-    [whamlet|
-      $maybe user <- mbUser
-        <p>
-          Hi, #{show user}
-        <p>
-          <a href=@{CreateDashboardR}>Create dashboard
-        <p>
-          <a href=@{AuthR LogoutR}>Logout
-      $nothing
-        <p>
-          <a href=@{AuthR LoginR}>Login
-    |]
+  mbAuthId <- maybeAuthId
+  case mbAuthId of
+    Nothing -> redirect $ AuthR LoginR
+    Just authId -> do
+      mbUser <- runDB $ getBy (UniqueUserAuthId authId)
+      case mbUser of
+        Just user -> getHomeRAuthed user
+        Nothing -> do
+          let user = User authId
+          userId <- runDB $ insert user
+          getHomeRAuthed $ Entity userId user
 
 
 createDashboardForm :: Form Dashboard
@@ -201,7 +218,7 @@ getDashboardR dashboardId = do
   defaultLayout $ do
     addScriptRemote "https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"
     [whamlet|
-      <p>#{show dashboard}
+      <h1>#{dashboardName dashboard}
       ^{tasksWidget dashboardId twefs newTaskForm}
     |]
 
@@ -338,6 +355,9 @@ editTaskCommonWidget = do
   |]
   toWidget [julius|
     $(function(){
+      $(".task-button").click(function(event) {
+        event.stopPropagation();
+      });
       $(".task-row").click(function(){
         if ($(".edit-task-popup").filter(":visible").length == 0) {
           $(this).find(".edit-task-popup").show();
@@ -374,7 +394,7 @@ editTaskPopupWidget dashboardId mbTask (widget, enctype) = do
     <div class="edit-task-popup">
       <form method="post" action=@{formEndRoute} enctype=#{enctype}>
         ^{widget}
-        <button>Submit
+        <button>Save
       <button .edit-task-popup-close>Close
   |]
 
@@ -390,15 +410,15 @@ taskRowWidget dashboardId taskEntity form = do
       <div class="task-cell task-deadline">#{showDeadline $ taskDeadline task}
       <div class="task-cell task-status"> #{show $ taskStatus task}
       $if taskStatus task == TaskListed
-        <div class="task-cell task-complete">
-          <form method=post action=@{CompleteTaskR dashboardId taskId}>
+        <div class="task-cell">
+          <form method=post class="task-button" action=@{CompleteTaskR dashboardId taskId}>
             <button>Complete
       $else
         <div class="task-cell task-reopen">
-          <form method=post action=@{ReopenTaskR dashboardId taskId}>
+          <form method=post class="task-button" action=@{ReopenTaskR dashboardId taskId}>
             <button>Reopen
       <div class="task-cell task-archive">
-        <form method=post action=@{ArchiveTaskR dashboardId taskId}>
+        <form method=post class="task-button" action=@{ArchiveTaskR dashboardId taskId}>
           <button>Archive
       ^{editTaskPopupWidget dashboardId (Just taskEntity) form}
   |]

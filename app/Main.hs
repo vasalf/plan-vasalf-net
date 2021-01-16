@@ -9,7 +9,6 @@ import My.Plan
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (runStderrLoggingT)
-import Data.Maybe (fromMaybe)
 
 import Data.Yaml (decodeFileThrow)
 import Database.Persist.Postgresql
@@ -25,4 +24,4 @@ main =
     withPostgresqlPool psqlConnStr (postgresConnections runCfg) $
       \pool -> liftIO $ do
         flip runSqlPersistMPool pool $ runMigration migrateAll
-        warp (runPort runCfg) $ PlanApp pool (googleOAuthSecrets secretCfg)
+        warp (runPort runCfg) $ PlanApp pool (runHost runCfg) (googleOAuthSecrets secretCfg)
