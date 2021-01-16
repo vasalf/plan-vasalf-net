@@ -9,7 +9,6 @@ import My.Plan
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (runStderrLoggingT)
-import Data.Maybe (fromMaybe)
 
 import Data.Yaml (decodeFileThrow)
 import Database.Persist.Postgresql
