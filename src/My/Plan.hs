@@ -218,7 +218,7 @@ getDashboardR dashboardId = do
   defaultLayout $ do
     addScriptRemote "https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"
     [whamlet|
-      <p>#{show dashboard}
+      <h1>#{dashboardName dashboard}
       ^{tasksWidget dashboardId twefs newTaskForm}
     |]
 
@@ -391,7 +391,7 @@ editTaskPopupWidget dashboardId mbTask (widget, enctype) = do
     <div class="edit-task-popup">
       <form method="post" action=@{formEndRoute} enctype=#{enctype}>
         ^{widget}
-        <button>Submit
+        <button>Save
       <button .edit-task-popup-close>Close
   |]
 
