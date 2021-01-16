@@ -3,7 +3,14 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: yesod-auth-oauth2-0.6.1.7@sha256:85eadc5932c150ba8dc7e2cad1b6ea951d9e1b8bb0bf77d2b252d2763f167b76,2950
+    pantry-tree:
+      size: 1844
+      sha256: 18e99b55fd29d542fc066495fd3f06ebc619ef001baba5680a2de07b08370499
+  original:
+    hackage: yesod-auth-oauth2-0.6.1.7@sha256:85eadc5932c150ba8dc7e2cad1b6ea951d9e1b8bb0bf77d2b252d2763f167b76,2950
 snapshots:
 - completed:
     size: 533053

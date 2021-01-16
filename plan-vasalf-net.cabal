@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3298f3dc2e7042b396a38be0912eb26264fad713fd0b486cf222ddf658ac700b
+-- hash: db70654ccac24cf2c422e4aa87a5a690faf2412acbc1e6d6e09094f3b5e8cac9
 
 name:           plan-vasalf-net
 version:        0.1.0.0
@@ -47,6 +47,8 @@ library
     , time >=1.9
     , yaml >=0.11
     , yesod >=1.6
+    , yesod-auth >=1.6
+    , yesod-auth-oauth2 >=0.6
     , yesod-persistent >=1.6
   default-language: Haskell2010
 
@@ -70,6 +72,8 @@ executable plan-vasalf-net-exe
     , time >=1.9
     , yaml >=0.11
     , yesod >=1.6
+    , yesod-auth >=1.6
+    , yesod-auth-oauth2 >=0.6
     , yesod-persistent >=1.6
   default-language: Haskell2010
 
@@ -93,5 +97,7 @@ test-suite plan-vasalf-net-test
     , time >=1.9
     , yaml >=0.11
     , yesod >=1.6
+    , yesod-auth >=1.6
+    , yesod-auth-oauth2 >=0.6
     , yesod-persistent >=1.6
   default-language: Haskell2010

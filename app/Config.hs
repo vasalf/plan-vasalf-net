@@ -5,6 +5,8 @@
 module Config where
 
 
+import My.Plan
+
 import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.ByteString (ByteString)
 import Data.Text.Encoding (encodeUtf8)
@@ -42,8 +44,9 @@ makePsqlConnStr cfg = encodeUtf8 $
 $(deriveJSON defaultOptions 'PostgresConfig)
 
 
-newtype SecretConfig = SecretConfig {
-  postgresConfig :: PostgresConfig
+data SecretConfig = SecretConfig {
+  postgresConfig :: PostgresConfig,
+  googleOAuthSecrets :: GoogleOAuthTokens
 }
 
 

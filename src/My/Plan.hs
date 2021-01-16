@@ -20,21 +20,35 @@ import Data.List (sortBy)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 
+import Data.Aeson.TH (deriveJSON, defaultOptions)
 import Data.Time.Calendar (Day)
 
 import Database.Persist.Postgresql
 import Yesod
+import Yesod.Auth
+import Yesod.Auth.OAuth2.Google
 
 import My.Model
 
 
-newtype PlanApp = PlanApp {
-  connectionPool :: ConnectionPool
+data GoogleOAuthTokens = GoogleOAuthTokens {
+  googleClientId :: T.Text,
+  googleClientSecret :: T.Text
+}
+
+
+$(deriveJSON defaultOptions 'GoogleOAuthTokens)
+
+
+data PlanApp = PlanApp {
+  connectionPool :: ConnectionPool,
+  googleSecrets :: GoogleOAuthTokens
 }
 
 
 mkYesod "PlanApp" [parseRoutes|
 / HomeR GET
+/auth AuthR Auth getAuth
 /create-dashboard CreateDashboardR GET POST
 /dashboard/#DashboardId DashboardR GET
 /dashboard/#DashboardId/create-task  CreateTaskR POST
@@ -54,6 +68,20 @@ instance YesodPersist PlanApp where
   runDB action = (connectionPool <$>  getYesod) >>= runSqlPool action
 
 
+instance YesodAuth PlanApp where
+  type AuthId PlanApp = UserAuthId
+  authenticate = return . Authenticated . credsIdent
+
+  loginDest _ = HomeR
+  logoutDest _ = HomeR
+
+  authPlugins app = [ oauth2Google (googleClientId ts) (googleClientSecret ts) ]
+    where
+      ts = googleSecrets app
+
+  maybeAuthId = lookupSession "_ID"
+
+
 instance RenderMessage PlanApp FormMessage where
   renderMessage _ _ = defaultFormMessage
 
@@ -61,17 +89,24 @@ instance RenderMessage PlanApp FormMessage where
 type Form a = Html -> MForm Handler (FormResult a, Widget)
 
 
--- TODO: Authentication
 authMaybe :: Handler (Maybe (Entity User))
-authMaybe = runDB $ getBy $ UniqueUserAuthId "test"
+authMaybe = do
+  mbId <- maybeAuthId
+  case mbId of
+    Just authId -> runDB $ getBy (UniqueUserAuthId authId)
+    Nothing -> pure Nothing
 
 
 authRedirect :: Handler (Entity User)
 authRedirect = do
-  mbUser <- authMaybe
-  case mbUser of
+  authId <- requireAuthId
+  storedUser <- runDB $ getBy (UniqueUserAuthId authId)
+  case storedUser of
     Just user -> pure user
-    Nothing -> redirect HomeR
+    Nothing -> do
+      let user = User authId
+      userId <- runDB $ insert user
+      return $ Entity userId user
 
 
 getHomeR :: Handler Html
@@ -79,8 +114,16 @@ getHomeR = do
   mbUser <- authMaybe
   defaultLayout
     [whamlet|
-      <p>Hi, #{show mbUser}!
-      <p><a href=@{CreateDashboardR}>Create dashboard
+      $maybe user <- mbUser
+        <p>
+          Hi, #{show user}
+        <p>
+          <a href=@{CreateDashboardR}>Create dashboard
+        <p>
+          <a href=@{AuthR LogoutR}>Logout
+      $nothing
+        <p>
+          <a href=@{AuthR LoginR}>Login
     |]
 
 
@@ -122,7 +165,7 @@ dashboardAccessType userId dashboardId = runDB $ do
 
 authDashboard :: DashboardId -> Handler Dashboard
 authDashboard dashboardId = do
-  authenticate
+  authorize
   dashboardById
     where
       dashboardById :: Handler Dashboard
@@ -132,8 +175,8 @@ authDashboard dashboardId = do
           Just e  -> return e
           Nothing -> redirect HomeR
 
-      authenticate :: Handler ()
-      authenticate = do
+      authorize :: Handler ()
+      authorize = do
         userId <- entityKey <$> authRedirect
         accessType <- dashboardAccessType userId dashboardId
         case accessType of
