@@ -24,8 +24,5 @@ main =
     let psqlConnStr = makePsqlConnStr (postgresConfig secretCfg)
     withPostgresqlPool psqlConnStr (postgresConnections runCfg) $
       \pool -> liftIO $ do
-        flip runSqlPersistMPool pool $ do
-          runMigration migrateAll
-          mbTestUser <- getBy (UniqueUserAuthId "test")
-          fromMaybe (insert_ (User "test")) (pure () <$ mbTestUser)
-        warp (runPort runCfg) $ PlanApp pool
+        flip runSqlPersistMPool pool $ runMigration migrateAll
+        warp (runPort runCfg) $ PlanApp pool (googleOAuthSecrets secretCfg)
