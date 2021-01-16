@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f24fa667cf7a8fbc1d5961857961eeaa3eea0a16678e28ae00b349f3fb6cbbef
+-- hash: 239937a48def4e94d6d47b19b19187cf4ae140f6048764f196b0e9b99fdebbe2
 
 name:           plan-vasalf-net
 version:        0.1.0.0
@@ -43,7 +43,6 @@ library
     , monad-logger >=0.3
     , persistent-postgresql >=2.8
     , persistent-template >=2.8
-    , shakespeare >=2.0
     , text >=1.2.4
     , time >=1.9
     , yesod >=1.6
@@ -65,7 +64,6 @@ executable plan-vasalf-net-exe
     , persistent-postgresql >=2.8
     , persistent-template >=2.8
     , plan-vasalf-net
-    , shakespeare >=2.0
     , text >=1.2.4
     , time >=1.9
     , yesod >=1.6
@@ -88,7 +86,6 @@ test-suite plan-vasalf-net-test
     , persistent-postgresql >=2.8
     , persistent-template >=2.8
     , plan-vasalf-net
-    , shakespeare >=2.0
     , text >=1.2.4
     , time >=1.9
     , yesod >=1.6

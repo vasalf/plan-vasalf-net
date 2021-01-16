@@ -21,7 +21,6 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 
 import Data.Time.Calendar (Day)
-import Text.Julius (RawJS(..))
 
 import Database.Persist.Postgresql
 import Yesod
