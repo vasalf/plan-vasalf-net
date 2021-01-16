@@ -355,6 +355,9 @@ editTaskCommonWidget = do
   |]
   toWidget [julius|
     $(function(){
+      $(".task-button").click(function(event) {
+        event.stopPropagation();
+      });
       $(".task-row").click(function(){
         if ($(".edit-task-popup").filter(":visible").length == 0) {
           $(this).find(".edit-task-popup").show();
@@ -407,15 +410,15 @@ taskRowWidget dashboardId taskEntity form = do
       <div class="task-cell task-deadline">#{showDeadline $ taskDeadline task}
       <div class="task-cell task-status"> #{show $ taskStatus task}
       $if taskStatus task == TaskListed
-        <div class="task-cell task-complete">
-          <form method=post action=@{CompleteTaskR dashboardId taskId}>
+        <div class="task-cell">
+          <form method=post class="task-button" action=@{CompleteTaskR dashboardId taskId}>
             <button>Complete
       $else
         <div class="task-cell task-reopen">
-          <form method=post action=@{ReopenTaskR dashboardId taskId}>
+          <form method=post class="task-button" action=@{ReopenTaskR dashboardId taskId}>
             <button>Reopen
       <div class="task-cell task-archive">
-        <form method=post action=@{ArchiveTaskR dashboardId taskId}>
+        <form method=post class="task-button" action=@{ArchiveTaskR dashboardId taskId}>
           <button>Archive
       ^{editTaskPopupWidget dashboardId (Just taskEntity) form}
   |]
