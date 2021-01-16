@@ -17,7 +17,7 @@ module My.Plan where
 
 import Control.Monad (forM)
 import Data.List (sortBy)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Text as T
 
 import Data.Aeson.TH (deriveJSON, defaultOptions)
@@ -109,22 +109,39 @@ authRedirect = do
       return $ Entity userId user
 
 
+userDashboards :: Entity User -> Handler Widget
+userDashboards user = do
+  dashboards <- runDB $ do
+    let userId = entityKey user
+    let getE key = fmap (Entity key) <$> get key
+    permissions <- selectList [ DashboardAccessUser ==. userId,
+                                DashboardAccessAtype ==. OwnerAccess ] []
+    catMaybes <$> mapM (getE . dashboardAccessDashboard . entityVal) permissions
+  return
+    [whamlet|
+      <ul>
+        $forall dashboard <- dashboards
+          <li>
+            <a href=@{DashboardR $ entityKey dashboard}>
+              #{dashboardName $ entityVal dashboard}
+      <p>
+        <a href=@{CreateDashboardR}>Create dashboard
+      <p>
+        <a href=@{AuthR LogoutR}>Logout
+    |]
+
+
 getHomeR :: Handler Html
 getHomeR = do
   mbUser <- authMaybe
-  defaultLayout
-    [whamlet|
-      $maybe user <- mbUser
+  case mbUser of
+    Nothing -> defaultLayout [whamlet|
         <p>
-          Hi, #{show user}
-        <p>
-          <a href=@{CreateDashboardR}>Create dashboard
-        <p>
-          <a href=@{AuthR LogoutR}>Logout
-      $nothing
-        <p>
-          <a href=@{AuthR LoginR}>Login
-    |]
+          <a href=@{AuthR LoginR}>
+      |]
+    Just user -> do
+      page <- userDashboards user
+      defaultLayout page
 
 
 createDashboardForm :: Form Dashboard
