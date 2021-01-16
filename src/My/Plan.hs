@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -14,6 +15,7 @@
 module My.Plan where
 
 
+import Control.Monad (forM)
 import Data.List (sortBy)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
@@ -40,6 +42,7 @@ mkYesod "PlanApp" [parseRoutes|
 /dashboard/#DashboardId/complete-task/#TaskId CompleteTaskR POST
 /dashboard/#DashboardId/archive-task/#TaskId ArchiveTaskR POST
 /dashboard/#DashboardId/reopen-task/#TaskId ReopenTaskR POST
+/dashboard/#DashboardId/edit-task/#TaskId EditTaskR POST
 /api/tasks/#DashboardId ApiTasksR GET
 |]
 
@@ -139,32 +142,25 @@ authDashboard dashboardId = do
           NoAccess -> redirect HomeR
 
 
+data TaskWithEditForm = TaskWithEditForm {
+  twefTask :: Entity Task,
+  twefForm :: (Widget, Enctype)
+}
+
+
 getDashboardR :: DashboardId -> Handler Html
 getDashboardR dashboardId = do
   dashboard <- authDashboard dashboardId
-  (widget, enctype) <- generateFormPost (createTaskForm dashboardId)
   tasks <- dashboardTasks dashboardId
+  twefs <- forM tasks $ \task -> do
+    form <- generateFormPost $ editTaskForm dashboardId $ Just task
+    return $ TaskWithEditForm task form
+  newTaskForm <- generateFormPost $ editTaskForm dashboardId Nothing
   defaultLayout $ do
     addScriptRemote "https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"
-    toWidgetHead [cassius|
-      #new-task-popup
-        display: none
-        position: absolute
-        top: 10%
-        left: 10%
-        border: 1px solid black
-        background-color: white
-        padding: 5%
-        z-index: 10
-    |]
     [whamlet|
       <p>#{show dashboard}
-      ^{tasksWidget dashboardId tasks}
-      <div #new-task-popup>
-        <form method=post action=@{CreateTaskR dashboardId} enctype=#{enctype}>
-          ^{widget}
-          <button>Submit
-          <button #new-task-popup-close>Close
+      ^{tasksWidget dashboardId twefs newTaskForm}
     |]
 
 
@@ -180,14 +176,18 @@ getApiTasksR dashboardId = do
   return $ object [ "dashboardId" .= dashboardId, "tasks" .= map entityVal tasks ]
 
 
-createTaskForm :: DashboardId -> Form Task
-createTaskForm dashboardId csrf = do
-  (nameRes, nameView) <- mreq textField "" Nothing
-  (dueDayRes, dueDayView) <- mopt dayField "" Nothing
-  (dueStartRes, dueStartView) <- mopt dayField "" Nothing
-  (dueEndRes, dueEndView) <- mopt dayField "" Nothing
-  (deadlineRes, deadlineView) <- mopt dayField "" Nothing
-  (descRes, descView) <- mopt textareaField "" Nothing
+editTaskForm :: DashboardId -> Maybe (Entity Task) -> Form Task
+editTaskForm dashboardId task csrf = do
+  (nameRes, nameView) <- mreq textField "" (taskName . entityVal <$> task)
+  (dueDayRes, dueDayView) <- mopt dayField "" (defaultDueDate . entityVal <$> task)
+  (dueStartRes, dueStartView) <- mopt dayField "" (defaultDueStart . entityVal <$> task)
+  (dueEndRes, dueEndView) <- mopt dayField "" (defaultDueEnd . entityVal <$> task)
+  (deadlineRes, deadlineView) <- mopt dayField "" (taskDeadline . entityVal <$> task)
+  (descRes, descView) <- mopt textareaField "" (defaultDesc . entityVal <$> task)
+  let (singleDisplay, rangeDisplay) :: (String, String) =
+        case taskDue . entityVal <$> task of
+          Just (DueDateRange _ _) -> ("none", "table-row")
+          _                       -> ("table-row", "none")
   let res = createTask
         <$> nameRes
         <*> dueDayRes
@@ -196,67 +196,41 @@ createTaskForm dashboardId csrf = do
         <*> deadlineRes
         <*> (unTextarea . fromMaybe "" <$> descRes)
   let widget = do
-        toWidget [cassius|
-          #new-task-form
-            display: table
-          .new-task-form-row
-            display: table-row
-          .new-task-form-cell
-            display: table-cell
-            padding: 5px
-          #new-task-due-date-range
-            display: none
-        |]
-        toWidget [julius|
-          $(function(){
-            $("#switch-to-date-range").click(function(event){
-              $("#" + "#{rawJS $ fvId dueDayView}").val("");
-              $("#new-task-due-date-range").css("display", "table-row");
-              $("#new-task-due-day").hide();
-              event.preventDefault();
-            });
-            $("#switch-to-single-date").click(function(event){
-              $("#" + "#{rawJS $ fvId dueStartView}").val("");
-              $("#" + "#{rawJS $ fvId dueEndView}").val("");
-              $("#new-task-due-date-range").hide();
-              $("#new-task-due-day").css("display", "table-row");
-              event.preventDefault();
-            });
-          });
-        |]
         [whamlet|
           #{csrf}
-          <div #new-task-form>
-            <div class="new-task-form-row">
-              <div class="new-task-form-cell">
+          <div class="edit-task-form">
+            <div class="edit-task-form-row">
+              <div class="edit-task-form-cell">
                 Task name:
-              <div class="new-task-form-cell">
+              <div class="edit-task-form-cell">
                 ^{fvInput nameView}
-            <div class="new-task-form-row" #new-task-due-day>
-              <div class="new-task-form-cell">
+            <div class="edit-task-form-row edit-task-due-day"
+                 style="display:#{singleDisplay}">
+              <div class="edit-task-form-cell">
                 Due:
-              <div class="new-task-form-cell">
+              <div class="edit-task-form-cell">
                 <span>
                   ^{fvInput dueDayView}
-                <a href="#" class="interactive-link" #switch-to-date-range>
+                <a href="#" class="switch-to-date-range">
                   Enter date range
-            <div class="new-task-form-row" #new-task-due-date-range>
-              <div class="new-task-form-cell">
+            <div class="edit-task-form-row edit-task-due-date-range"
+                 style="display:#{rangeDisplay}">
+              <div class="edit-task-form-cell">
                 Due:
-              <div class="new-task-form-cell">
+              <div class="edit-task-form-cell">
                 <span>
                   ^{fvInput dueStartView} — ^{fvInput dueEndView}
-                <a href="#" class="interactive-link" #switch-to-single-date>
+                <a href="#" class="switch-to-single-day">
                   Enter single date
-            <div class="new-task-form-row">
-              <div class="new-task-form-cell">
+            <div class="edit-task-form-row">
+              <div class="edit-task-form-cell">
                 Deadline:
-              <div class="new-task-form-cell">
+              <div class="edit-task-form-cell">
                 ^{fvInput deadlineView}
-            <div class="new-task-form-row">
-              <div class="new-task-form-cell">
+            <div class="edit-task-form-row">
+              <div class="edit-task-form-cell">
                 Description:
-              <div class="new-task-form-cell">
+              <div class="edit-task-form-cell">
                 ^{fvInput descView}
         |]
   return (res, widget)
@@ -272,9 +246,99 @@ createTaskForm dashboardId csrf = do
         | Just start <- dueStart, Just end <- dueEnd =
             Task dashboardId name (DueDateRange start end) deadline desc TaskListed
 
+      defaultDueDate :: Task -> Maybe Day
+      defaultDueDate t =
+        case taskDue t of
+          DueDate day -> Just day
+          _           -> Nothing
 
-taskRowWidget :: DashboardId -> Entity Task -> Widget
-taskRowWidget dashboardId taskEntity = do
+      defaultDueStart :: Task -> Maybe Day
+      defaultDueStart t =
+        case taskDue t of
+          DueDateRange start _ -> Just start
+          _                    -> Nothing
+
+      defaultDueEnd :: Task -> Maybe Day
+      defaultDueEnd t =
+        case taskDue t of
+          DueDateRange _ end -> Just end
+          _                  -> Nothing
+
+      defaultDesc :: Task -> Maybe Textarea
+      defaultDesc = Just . Textarea . taskDescription
+
+
+editTaskCommonWidget :: Widget
+editTaskCommonWidget = do
+  toWidgetHead [cassius|
+    .edit-task-popup
+      display: none
+      position: absolute
+      top: 10%
+      left: 10%
+      border: 1px solid black
+      background-color: white
+      padding: 5%
+      z-index: 10
+
+    .edit-task-form
+      display: table
+
+    .edit-task-form-row
+      display: table-row
+
+    .edit-task-form-cell
+      display: table-cell
+      padding: 5px
+
+    .edit-task-due-date-range
+      display: none
+  |]
+  toWidget [julius|
+    $(function(){
+      $(".task-row").click(function(){
+        if ($(".edit-task-popup").filter(":visible").length == 0) {
+          $(this).find(".edit-task-popup").show();
+        }
+      });
+      $(".edit-task-popup-close").click(function(event){
+        $(this).parent().hide();
+        event.stopPropagation();
+      });
+      $(".switch-to-date-range").click(function(event){
+        var form = $(this).closest(".edit-task-form");
+        form.find(".edit-task-due-day").hide();
+        form.find(".edit-task-due-day").find("input").val("");
+        form.find(".edit-task-due-date-range").css("display", "table-row");
+        event.preventDefault();
+      });
+      $(".switch-to-single-day").click(function(event){
+        var form = $(this).closest(".edit-task-form");
+        form.find(".edit-task-due-date-range").hide();
+        form.find(".edit-task-due-date-range").find("input").val("");
+        form.find(".edit-task-due-day").css("display", "table-row");
+        event.preventDefault();
+      });
+    });
+  |]
+
+
+editTaskPopupWidget :: DashboardId -> Maybe (Entity Task) -> (Widget, Enctype) -> Widget
+editTaskPopupWidget dashboardId mbTask (widget, enctype) = do
+  let formEndRoute = case mbTask of
+                        Nothing -> CreateTaskR dashboardId
+                        Just task -> EditTaskR dashboardId (entityKey task)
+  [whamlet|
+    <div class="edit-task-popup">
+      <form method="post" action=@{formEndRoute} enctype=#{enctype}>
+        ^{widget}
+        <button>Submit
+      <button .edit-task-popup-close>Close
+  |]
+
+
+taskRowWidget :: DashboardId -> Entity Task -> (Widget, Enctype) -> Widget
+taskRowWidget dashboardId taskEntity form = do
   let task = entityVal taskEntity
   let taskId = entityKey taskEntity
   toWidget [whamlet|
@@ -294,6 +358,7 @@ taskRowWidget dashboardId taskEntity = do
       <div class="task-cell task-archive">
         <form method=post action=@{ArchiveTaskR dashboardId taskId}>
           <button>Archive
+      ^{editTaskPopupWidget dashboardId (Just taskEntity) form}
   |]
     where
       showDue NoDueDate = ""
@@ -303,8 +368,8 @@ taskRowWidget dashboardId taskEntity = do
       showDeadline = maybe "" show
 
 
-tasksWidget :: DashboardId -> [Entity Task] -> Widget
-tasksWidget dashboardId tasks = do
+tasksWidget :: DashboardId -> [TaskWithEditForm] -> (Widget, Enctype) -> Widget
+tasksWidget dashboardId tasks newTaskForm = do
   let sortedTasks = sortBy cmp tasks
   toWidgetHead [cassius|
     #tasks
@@ -321,24 +386,15 @@ tasksWidget dashboardId tasks = do
       padding: 5px
       text-align: left
   |]
-  toWidget [julius|
-    $(function(){
-      $("#new-task-row").click(function(){
-        $("#new-task-popup").show();
-      });
-      $("#new-task-popup-close").click(function(){
-        $("#new-task-popup").hide();
-      });
-    });
-  |]
+  editTaskCommonWidget
   toWidget [whamlet|
     <div #tasks>
       <div class="task-header">
         <div class="task-cell">Task
         <div class="task-cell">Due
         <div class="task-cell">Deadline
-      $forall task <- sortedTasks
-        ^{taskRowWidget dashboardId task}
+      $forall TaskWithEditForm task form <- sortedTasks
+        ^{taskRowWidget dashboardId task form}
       <div class="task-row" #new-task-row>
         <div class="task-cell">New task
         <div class="task-cell">
@@ -346,6 +402,7 @@ tasksWidget dashboardId tasks = do
         <div class="task-cell">
         <div class="task-cell">
         <div class="task-cell">
+        ^{editTaskPopupWidget dashboardId Nothing newTaskForm}
   |]
     where
       cmpCmpl x y
@@ -365,7 +422,7 @@ tasksWidget dashboardId tasks = do
 
       dueTf = mbStartDate . taskDue . entityVal
 
-      cmp task1 task2
+      cmpE task1 task2
         | taskStatus (entityVal task1) /= taskStatus (entityVal task2) =
             cmpCmpl (taskStatus $ entityVal task1) (taskStatus $ entityVal task2)
         | taskDue (entityVal task1) /= taskDue (entityVal task2) =
@@ -375,11 +432,13 @@ tasksWidget dashboardId tasks = do
         | otherwise =
             compare (entityKey task1) (entityKey task2)
 
+      cmp task1 task2 = cmpE (twefTask task1) (twefTask task2)
+
 
 postCreateTaskR :: DashboardId -> Handler Html
 postCreateTaskR dashboardId = do
   _ <- authDashboard dashboardId
-  ((result, _), _) <- runFormPost (createTaskForm dashboardId)
+  ((result, _), _) <- runFormPost (editTaskForm dashboardId Nothing)
   case result of
     FormSuccess task -> runDB $ insert_ task
     _ -> pure ()
@@ -404,4 +463,19 @@ postReopenTaskR :: DashboardId -> TaskId -> Handler Html
 postReopenTaskR dashboardId taskId = do
   _ <- authDashboard dashboardId
   runDB $ update taskId [ TaskStatus =. TaskListed ]
+  redirect $ DashboardR dashboardId
+
+
+postEditTaskR :: DashboardId -> TaskId -> Handler Html
+postEditTaskR dashboardId taskId = do
+  _ <- authDashboard dashboardId
+  task <- runDB $ get404 taskId
+  ((result, _), _) <- runFormPost (editTaskForm dashboardId (Just $ Entity taskId task))
+  case result of
+    FormSuccess updatedTask -> runDB $ do
+      update taskId [ TaskName =. taskName updatedTask,
+                      TaskDue =. taskDue updatedTask,
+                      TaskDeadline =. taskDeadline updatedTask,
+                      TaskDescription =. taskDescription updatedTask ]
+    _ -> pure ()
   redirect $ DashboardR dashboardId
