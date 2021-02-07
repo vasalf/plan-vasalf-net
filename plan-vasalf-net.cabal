@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: db70654ccac24cf2c422e4aa87a5a690faf2412acbc1e6d6e09094f3b5e8cac9
+-- hash: 8ac99f7e104f00c66b1c63f3b1000ab0a5a5e5b6e9909cd9592d03ba78bbfd59
 
 name:           plan-vasalf-net
 version:        0.1.0.0
@@ -27,10 +27,13 @@ source-repository head
 
 library
   exposed-modules:
+      My.Application
+      My.Foundation
       My.Model
       My.Model.Haskell
       My.Model.Persist
       My.Plan
+      My.Widgets.Dashboard
   other-modules:
       Paths_plan_vasalf_net
   hs-source-dirs:
