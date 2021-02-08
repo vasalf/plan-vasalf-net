@@ -55,15 +55,16 @@ getHomeRAuthed user = do
     catMaybes <$> mapM (getE . dashboardAccessDashboard . entityVal) permissions
   defaultLayout
     [whamlet|
-      <ul>
-        $forall dashboard <- dashboards
-          <li>
-            <a href=@{DashboardR $ entityKey dashboard}>
-              #{dashboardName $ entityVal dashboard}
-      <p>
-        <a href=@{CreateDashboardR}>Create dashboard
-      <p>
-        <a href=@{AuthR LogoutR}>Logout
+      <div class="container">
+        <table class="table">
+          $forall dashboard <- dashboards
+            <tr>
+              <td>
+                <a href=@{DashboardR $ entityKey dashboard}>#{dashboardName $ entityVal dashboard}
+        <p>
+          <a href=@{CreateDashboardR}>Create dashboard
+        <p>
+          <a href=@{AuthR LogoutR}>Logout
     |]
 
 

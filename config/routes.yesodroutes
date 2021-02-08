@@ -1,9 +1,9 @@
-/ HomeR GET
-/auth AuthR Auth getAuth
-/create-dashboard CreateDashboardR GET POST
-/dashboard/#DashboardId DashboardR GET
-/dashboard/#DashboardId/create-task  CreateTaskR POST
-/dashboard/#DashboardId/complete-task/#TaskId CompleteTaskR POST
-/dashboard/#DashboardId/archive-task/#TaskId ArchiveTaskR POST
-/dashboard/#DashboardId/reopen-task/#TaskId ReopenTaskR POST
-/dashboard/#DashboardId/edit-task/#TaskId EditTaskR POST
+/                                             HomeR            GET
+/auth                                         AuthR            Auth getAuth
+/create-dashboard                             CreateDashboardR GET POST
+/dashboard/#DashboardId                       DashboardR       GET
+/dashboard/#DashboardId/create-task           CreateTaskR      POST
+/dashboard/#DashboardId/task/#TaskId/complete CompleteTaskR    POST
+/dashboard/#DashboardId/task/#TaskId/archive  ArchiveTaskR     POST
+/dashboard/#DashboardId/task/#TaskId/reopen   ReopenTaskR      POST
+/dashboard/#DashboardId/task/#TaskId/edit     EditTaskR        POST
