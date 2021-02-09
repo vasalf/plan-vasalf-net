@@ -56,13 +56,18 @@ getHomeRAuthed user = do
   defaultLayout
     [whamlet|
       <div class="container">
-        <table class="table">
-          $forall dashboard <- dashboards
-            <tr>
-              <td>
-                <a href=@{DashboardR $ entityKey dashboard}>#{dashboardName $ entityVal dashboard}
+        $if not $ null dashboards
+          <table class="table w-auto">
+            <thead>
+              <tr>
+                <th>Dashboard name
+            <tbody>
+              $forall dashboard <- dashboards
+                <tr>
+                  <td>
+                    <a href=@{DashboardR $ entityKey dashboard}>#{dashboardName $ entityVal dashboard}
         <p>
-          <a href=@{CreateDashboardR}>Create dashboard
+          <a href=@{CreateDashboardR} class="btn btn-outline-primary">Create dashboard
         <p>
           <a href=@{AuthR LogoutR}>Logout
     |]
@@ -84,7 +89,15 @@ getHomeR = do
 
 
 createDashboardForm :: Form Dashboard
-createDashboardForm = renderDivs $ Dashboard <$> areq textField "Dashboard name: " Nothing
+createDashboardForm = renderDivs $ Dashboard <$> areq textField dashboardNameSettings Nothing
+  where
+    dashboardNameSettings = FieldSettings {
+      fsLabel = "Dashboard name: ",
+      fsTooltip = Nothing,
+      fsId = Nothing,
+      fsName = Nothing,
+      fsAttrs = [ ("class", "form-control") ]
+    }
 
 
 getCreateDashboardR :: Handler Html
@@ -93,9 +106,11 @@ getCreateDashboardR = do
   (widget, enctype) <- generateFormPost createDashboardForm
   defaultLayout
     [whamlet|
-      <form method=post action=@{CreateDashboardR} enctype=#{enctype}>
-        ^{widget}
-        <button>Submit
+      <div class="container">
+        <form method=post action=@{CreateDashboardR} enctype=#{enctype}>
+          ^{widget}
+          <div class="py-1">
+            <button class="btn btn-outline-primary">Create
     |]
 
 
