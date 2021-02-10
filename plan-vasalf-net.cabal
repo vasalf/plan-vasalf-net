@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8f720b00c87cba08dcbe29cddc2d3c6b19c6ab3d9501abac5bc9c7f3b81f930b
+-- hash: 1a558a31b39b6058930504761ae69065e55af93d7c0cf7772dc13b225b28dceb
 
 name:           plan-vasalf-net
-version:        0.1.1.0
+version:        0.1.1.1
 description:    Please see the README on GitHub at <https://github.com/vasalf/plan-vasalf-net#readme>
 homepage:       https://github.com/vasalf/plan-vasalf-net#readme
 bug-reports:    https://github.com/vasalf/plan-vasalf-net/issues

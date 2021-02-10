@@ -58,8 +58,17 @@ sortTasks = sortBy cmp
       | DueDateRange da _ <- a, DueDate db <- b = compare da db
       | DueDateRange da _ <- a, DueDateRange db _ <- b = compare da db
 
+    cmpDeadline a b
+      | a == b = EQ
+      | Nothing <- a = GT
+      | Nothing <- b = LT
+      | Just da <- a, Just db <- b = compare da db
+
     cmp (Entity _ lhs) (Entity _ rhs)
       | taskStatus lhs /= taskStatus rhs = cmpStatus (taskStatus lhs) (taskStatus rhs)
+      | TaskListed <- taskStatus lhs,
+        NoDueDate <- taskDue lhs,
+        NoDueDate <- taskDue rhs = cmpDeadline (taskDeadline lhs) (taskDeadline rhs)
       | TaskListed <- taskStatus lhs = cmpDue (taskDue lhs) (taskDue rhs)
       | otherwise = cmpDue (taskDue rhs) (taskDue lhs)
 
